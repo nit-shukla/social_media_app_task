@@ -178,6 +178,7 @@ class CommentSection extends StatefulWidget {
 class _CommentSectionState extends State<CommentSection> {
   final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _commentController = TextEditingController();
+  bool _isSubmitting = false;
   
   void _addComment() async {
     if (_commentController.text.trim().isEmpty) return;
@@ -192,9 +193,15 @@ class _CommentSectionState extends State<CommentSection> {
       return;
     }
     
+    setState(() {
+      _isSubmitting = true;
+    });
+    
     try {
+      final commentId = Uuid().v4();
+      
       final comment = CommentModel(
-        id: Uuid().v4(),
+        id: commentId,
         postId: widget.postId,
         userId: userId,
         text: _commentController.text.trim(),
@@ -207,6 +214,10 @@ class _CommentSectionState extends State<CommentSection> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error adding comment: ${e.toString()}'))
       );
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
     }
   }
   
@@ -216,22 +227,28 @@ class _CommentSectionState extends State<CommentSection> {
       children: [
         Divider(),
         
-        // Comments
+        // Comments list
         StreamBuilder<List<CommentModel>>(
           stream: _firestoreService.getComments(widget.postId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
+              return Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
             
             if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
+              return Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Center(child: Text('Error loading comments')),
+              );
             }
             
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('No comments yet'),
+                padding: EdgeInsets.all(8.0),
+                child: Center(child: Text('No comments yet')),
               );
             }
             
@@ -247,7 +264,7 @@ class _CommentSectionState extends State<CommentSection> {
           },
         ),
         
-        // Add Comment
+        // Add Comment input
         Padding(
           padding: EdgeInsets.all(8.0),
           child: Row(
@@ -264,13 +281,23 @@ class _CommentSectionState extends State<CommentSection> {
                       horizontal: 16.0, 
                       vertical: 8.0,
                     ),
+                    enabled: !_isSubmitting,
                   ),
+                  maxLines: 1,
                 ),
               ),
-              IconButton(
-                icon: Icon(Icons.send),
-                onPressed: _addComment,
-              ),
+              SizedBox(width: 8.0),
+              _isSubmitting 
+                ? SizedBox(
+                    width: 24, 
+                    height: 24, 
+                    child: CircularProgressIndicator(strokeWidth: 2)
+                  )
+                : IconButton(
+                    icon: Icon(Icons.send),
+                    onPressed: _addComment,
+                    color: Theme.of(context).primaryColor,
+                  ),
             ],
           ),
         ),
