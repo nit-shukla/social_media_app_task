@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../models/post_model.dart';
@@ -70,27 +71,67 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Create Post'),
-        actions: [
-          TextButton(
-            onPressed: _isLoading ? null : _createPost,
-            child: Text(
-              'Post',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
+        leading: IconButton(
+          icon: Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Expanded(
+          : Column(
+              children: [
+                // User info bar
+                Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      FutureBuilder<UserModel?>(
+                        future: _firestoreService.getUser(
+                          Provider.of<AuthService>(context).currentUser?.uid ?? '',
+                        ),
+                        builder: (context, snapshot) {
+                          String username = 'User';
+                          String? photoUrl;
+                          
+                          if (snapshot.hasData) {
+                            username = snapshot.data!.username;
+                            photoUrl = snapshot.data!.photoUrl;
+                          }
+                          
+                          return Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundImage: photoUrl != null
+                                    ? NetworkImage(photoUrl)
+                                    : null,
+                                child: photoUrl == null
+                                    ? Text(username.substring(0, 1).toUpperCase())
+                                    : null,
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                username,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Divider
+                Divider(height: 1),
+                
+                // Text input area
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
                     child: TextField(
                       controller: _textController,
                       maxLines: null,
@@ -100,10 +141,36 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         border: InputBorder.none,
                       ),
                       textAlignVertical: TextAlignVertical.top,
+                      style: TextStyle(fontSize: 18),
                     ),
                   ),
-                ],
-              ),
+                ),
+                
+                // Post button
+                Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _createPost,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      child: Text(
+                        'Post',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
     );
   }
